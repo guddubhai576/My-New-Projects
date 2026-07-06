@@ -9,10 +9,29 @@ export function Classifier() {
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
   const [urlInput, setUrlInput] = useState('');
   
+  const [isLiveStream, setIsLiveStream] = useState(false);
+  
   const [isClassifying, setIsClassifying] = useState(false);
   const [predictions, setPredictions] = useState<{ className: string; probability: number; isFake: boolean }[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const liveVideoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isLiveStream && liveVideoRef.current && streamRef.current) {
+      liveVideoRef.current.srcObject = streamRef.current;
+    }
+  }, [isLiveStream]);
 
   useEffect(() => {
     async function loadModel() {
@@ -100,6 +119,43 @@ export function Classifier() {
     fileInputRef.current?.click();
   };
 
+  const startLiveCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      streamRef.current = stream;
+      setIsLiveStream(true);
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      alert("Could not access camera. Please ensure permissions are granted.");
+    }
+  };
+
+  const stopLiveCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsLiveStream(false);
+  };
+
+  const captureFromLiveCamera = () => {
+    if (liveVideoRef.current && canvasRef.current) {
+      const video = liveVideoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        stopLiveCamera();
+        setMediaSrc(dataUrl);
+        setMediaType('image');
+        classifyMedia('image');
+      }
+    }
+  };
+
   return (
     <div className="w-full max-w-xl mx-auto flex flex-col gap-6">
       
@@ -130,7 +186,33 @@ export function Classifier() {
         <div className="aspect-[4/5] sm:aspect-[4/3] w-full relative flex flex-col items-center justify-center">
           <div className="absolute inset-0 border-2 border-dashed border-rose-500/20 m-4 rounded-[2rem] pointer-events-none"></div>
 
-          {mediaSrc ? (
+          <canvas ref={canvasRef} className="hidden" />
+
+          {isLiveStream ? (
+            <div className="relative w-full h-full p-8 flex items-center justify-center">
+              <video 
+                ref={liveVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className="max-w-full max-h-[60vh] rounded-2xl shadow-2xl object-contain z-10"
+              />
+              <div className="absolute bottom-6 left-0 right-0 z-30 flex justify-center gap-4">
+                <button 
+                  onClick={stopLiveCamera}
+                  className="bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/20 text-white px-6 py-3 rounded-xl transition-all shadow-lg"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={captureFromLiveCamera}
+                  className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-rose-500/20"
+                >
+                  Capture & Analyze
+                </button>
+              </div>
+            </div>
+          ) : mediaSrc ? (
             <div className="relative w-full h-full p-8 flex items-center justify-center">
               {mediaType === 'video' ? (
                 <video 
@@ -187,7 +269,7 @@ export function Classifier() {
               
               <div className="flex flex-col sm:flex-row w-full gap-4 mb-6">
                 <button 
-                  onClick={triggerFileInput}
+                  onClick={startLiveCamera}
                   disabled={isModelLoading}
                   className="flex-1 px-6 py-3 bg-white text-slate-950 font-bold rounded-xl hover:bg-rose-400 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-white/5 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
                 >
