@@ -1,0 +1,38 @@
+{
+  "rulesVersion": "2",
+  "collections": [
+    {
+      "name": "scans",
+      "path": "scans/{scanId}",
+      "description": "Stores user classification scan results.",
+      "securityRules": {
+        "read": "request.auth != null && request.auth.uid == resource.data.userId",
+        "create": "request.auth != null && request.resource.data.userId == request.auth.uid",
+        "update": "request.auth != null && request.auth.uid == resource.data.userId && request.resource.data.userId == request.auth.uid",
+        "delete": "request.auth != null && request.auth.uid == resource.data.userId"
+      },
+      "schema": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who performed the scan."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of media scanned (image or video)."
+        },
+        "src": {
+          "type": "string",
+          "description": "The source or data URL of the scanned media."
+        },
+        "predictions": {
+          "type": "array",
+          "description": "The predictions returned by the classifier."
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Timestamp of the scan."
+        }
+      }
+    }
+  ]
+}

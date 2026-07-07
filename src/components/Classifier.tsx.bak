@@ -94,6 +94,7 @@ export function Classifier({ onModelStatusChange, language = 'en' }: ClassifierP
 
   const [showHistory, setShowHistory] = useState(false);
   const [isProcessingBatch, setIsProcessingBatch] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
@@ -131,6 +132,7 @@ export function Classifier({ onModelStatusChange, language = 'en' }: ClassifierP
   }, []);
 
   const handleMediaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setCameraError(null);
     const files = Array.from(event.target.files || []) as File[];
     if (files.length > 0) {
       if (files.length === 1) {
@@ -188,6 +190,7 @@ export function Classifier({ onModelStatusChange, language = 'en' }: ClassifierP
 
   const handleUrlSubmit = () => {
     if (!urlInput.trim()) return;
+    setCameraError(null);
     
     setIsClassifying(true);
     setPredictions([]);
@@ -289,7 +292,55 @@ export function Classifier({ onModelStatusChange, language = 'en' }: ClassifierP
   };
 
   const triggerFileInput = () => {
+    setCameraError(null);
     fileInputRef.current?.click();
+  };
+
+  const startLiveCamera = async () => {
+    setCameraError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      streamRef.current = stream;
+      setIsLiveStream(true);
+    } catch (err: any) {
+      console.error("Error accessing camera:", err);
+      let msg = "Could not access camera.";
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        msg = "Camera permission was denied. Please allow camera access in your browser settings.";
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        msg = "No camera device found on this system.";
+      } else {
+        msg = err.message || "Could not access camera. Please make sure permissions are granted.";
+      }
+      setCameraError(msg);
+    }
+  };
+
+  const stopLiveCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsLiveStream(false);
+  };
+
+  const captureFromLiveCamera = () => {
+    if (liveVideoRef.current && canvasRef.current) {
+      const video = liveVideoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        stopLiveCamera();
+        setMediaSrc(dataUrl);
+        setMediaType('image');
+        setIsClassifying(true);
+        classifyMedia('image', dataUrl);
+      }
+    }
   };
 
   const analyzeWithGemini = async () => {

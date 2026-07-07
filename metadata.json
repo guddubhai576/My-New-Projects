@@ -1,9 +1,7 @@
 {
   "name": "Vision Identifier",
   "description": "A responsive web and mobile app that uses TensorFlow.js and MobileNetV2 to classify images on-device.",
-  "requestFramePermissions": [
-    "camera"
-  ],
+  "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]

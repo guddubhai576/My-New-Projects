@@ -1,0 +1,24 @@
+--- src/components/Classifier.tsx
++++ src/components/Classifier.tsx
+@@ -148,6 +148,22 @@
+     loadModel();
+   }, []);
+ 
++  useEffect(() => {
++    const handlePaste = (e: ClipboardEvent) => {
++      if (e.clipboardData && e.clipboardData.files.length > 0) {
++        const files = Array.from(e.clipboardData.files);
++        if (files.length === 1) {
++          processFile(files[0]);
++        } else {
++          processBatch(files);
++        }
++      }
++    };
++    
++    window.addEventListener('paste', handlePaste);
++    return () => window.removeEventListener('paste', handlePaste);
++  }, []);
++
+   const handleMediaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+     setCameraError(null);
